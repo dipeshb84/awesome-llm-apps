@@ -8,7 +8,7 @@ def embedchain_bot(db_path: str, api_key: str) -> App:
     return App.from_config(
         config={
             "llm": {"provider": "openai", "config": {"model": "gpt-4", "temperature": 0.5, "api_key": api_key}},
-            "vectordb": {"provider": "chroma", "config": {"dir": db_path}},
+            "vectordb": {"provider": "chroma", "config": {"dir": list}},
             "embedder": {"provider": "openai", "config": {"api_key": api_key}},
         }
     )
@@ -30,7 +30,7 @@ def fetch_video_data(video_url: str) -> Tuple[str, str]:
         
         # First, check if transcripts are available
         try:
-            transcript_list = api.list(video_id)
+            transcript_list = api.list_transcripts(video_id)
             available_languages = [t.language_code for t in transcript_list]
             st.info(f"Available transcripts: {available_languages}")
         except Exception as list_error:
