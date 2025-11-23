@@ -1,3 +1,6 @@
 streamlit
-embedchain[youtube]
+openai
+embedchain==0.1.115
+chromadb==0.4.24
 youtube-transcript-api==0.6.3
+tiktoken
