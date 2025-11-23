@@ -1,16 +1,10 @@
 import streamlit as st
 import tempfile
 import requests
+import re
+import os
 from embedchain import App
 from youtube_transcript_api import YouTubeTranscriptApi
-import re
-import requests
-# ---------------------------------------
-# HARD-CODED VALUES (EDIT THESE)
-# ---------------------------------------
-
-API_KEY = "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"   # <-- put your key here
-VIDEO_URL = "https://www.youtube.com/watch?v=HCeyLJP60LQ"  # <-- put video URL here
 
 # ---------------------------------------
 # Helper Functions
@@ -116,7 +110,6 @@ def fetch_transcript(url: str) -> str:
 # ---------------------------------------
 
 st.title("📺 Chat with a YouTube Video (RAG + GPT-4o-mini)")
-st.caption("API key and YouTube link are hard-coded for testing.")
 
 # Initialize session state
 if "rag" not in st.session_state:
@@ -127,22 +120,62 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "video_title" not in st.session_state:
     st.session_state.video_title = ""
+if "api_key" not in st.session_state:
+    st.session_state.api_key = os.getenv("OPENAI_API_KEY", "")
+if "video_url" not in st.session_state:
+    st.session_state.video_url = ""
+
+# Sidebar for configuration
+with st.sidebar:
+    st.header("⚙️ Configuration")
+    
+    api_key = st.text_input(
+        "OpenAI API Key",
+        value=st.session_state.api_key,
+        type="password",
+        help="Enter your OpenAI API key. You can also set it as OPENAI_API_KEY environment variable."
+    )
+    
+    video_url = st.text_input(
+        "YouTube Video URL",
+        value=st.session_state.video_url,
+        placeholder="https://www.youtube.com/watch?v=...",
+        help="Enter the YouTube video URL you want to chat with."
+    )
+    
+    if st.button("Load Video"):
+        if not api_key:
+            st.error("⚠️ Please enter your OpenAI API key")
+        elif not video_url:
+            st.error("⚠️ Please enter a YouTube video URL")
+        else:
+            st.session_state.api_key = api_key
+            st.session_state.video_url = video_url
+            st.session_state.loaded = False
+            st.session_state.rag = None
+            st.session_state.chat_history = []
+            st.session_state.video_title = ""
+            st.rerun()
 
 
 # ---------------------------------------
 # AUTO LOAD VIDEO ON START
 # ---------------------------------------
 
+if not st.session_state.api_key or not st.session_state.video_url:
+    st.info("👈 Please configure your API key and video URL in the sidebar to get started.")
+    st.stop()
+
 if not st.session_state.loaded:
     with st.spinner("Fetching transcript..."):
-        transcript = fetch_transcript(VIDEO_URL)
+        transcript = fetch_transcript(st.session_state.video_url)
 
     if transcript:
-        video_id = extract_video_id(VIDEO_URL)
+        video_id = extract_video_id(st.session_state.video_url)
         title = fetch_title(video_id)
 
         db_path = tempfile.mkdtemp()
-        st.session_state.rag = create_rag_app(API_KEY, db_path)
+        st.session_state.rag = create_rag_app(st.session_state.api_key, db_path)
 
         with st.spinner("Indexing transcript..."):
             st.session_state.rag.add(transcript, data_type="text")
@@ -153,7 +186,7 @@ if not st.session_state.loaded:
         st.success(f"✅ Loaded: {title}")
         st.info(f"📊 Transcript length: {len(transcript.split())} words")
     else:
-        st.error("❌ No transcript available for this hard-coded video.")
+        st.error("❌ No transcript available for this video.")
         st.stop()
 
 
